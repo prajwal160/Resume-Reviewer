@@ -1,8 +1,11 @@
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 
 export default function Navbar() {
   const location = useLocation();
   const isAuth = !!localStorage.getItem("token");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -43,7 +46,7 @@ export default function Navbar() {
               Resume Review
             </Link>
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="text-slate-600 hover:text-red-600 font-medium transition-colors"
             >
               Logout
@@ -51,6 +54,36 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {showLogoutConfirm &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ minHeight: "100dvh" }}>
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowLogoutConfirm(false)}
+              aria-hidden="true"
+            />
+            <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-auto">
+              <p className="text-slate-800 font-medium mb-1">Sign out?</p>
+              <p className="text-slate-500 text-sm mb-6">Are you sure you want to sign out?</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </nav>
   );
 }

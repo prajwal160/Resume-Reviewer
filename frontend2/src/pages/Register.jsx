@@ -9,6 +9,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -16,7 +17,8 @@ export default function Register() {
     setLoading(true);
     try {
       await api.post("/auth/register", { name, email, password });
-      navigate("/login");
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {
@@ -39,6 +41,11 @@ export default function Register() {
           <p className="text-slate-500 mb-6">Start tracking your job applications today</p>
 
           <form onSubmit={handleRegister} className="space-y-4">
+            {success && (
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 text-sm">
+                Account created! Redirecting to sign in...
+              </div>
+            )}
             {error && (
               <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm">
                 {error}
