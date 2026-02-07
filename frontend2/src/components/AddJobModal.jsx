@@ -1,7 +1,9 @@
 import { useState } from "react";
 import api from "../api/axios";
+import { useNotifications } from "../context/NotificationsContext";
 
 export default function AddJobModal({ onClose, onSuccess }) {
+  const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -12,6 +14,8 @@ export default function AddJobModal({ onClose, onSuccess }) {
     appliedDate: new Date().toISOString().slice(0, 10),
     interviewDate: "",
     reminderAt: "",
+    notes: "",
+    checklistText: "",
   });
 
   const handleSubmit = async (e) => {
@@ -24,11 +28,26 @@ export default function AddJobModal({ onClose, onSuccess }) {
         appliedDate: form.appliedDate || undefined,
         interviewDate: form.interviewDate || undefined,
         reminderAt: form.reminderAt || undefined,
+        notes: form.notes || undefined,
+        checklist: form.checklistText
+          ? form.checklistText
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter(Boolean)
+              .map((text) => ({ text, done: false }))
+          : [],
+      });
+      addNotification({
+        title: "Job added",
+        message: `${form.company} · ${form.role}`,
+        type: "success",
       });
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to add job");
+      const message = err.response?.data?.message || "Failed to add job";
+      setError(message);
+      addNotification({ title: "Add failed", message, type: "error" });
     } finally {
       setLoading(false);
     }
@@ -79,6 +98,12 @@ export default function AddJobModal({ onClose, onSuccess }) {
               setForm((f) => ({ ...f, jobDescription: e.target.value }))
             }
           />
+          <textarea
+            className="input-field min-h-[60px] resize-none"
+            placeholder="Notes (optional)"
+            value={form.notes}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          />
           <select
             className="input-field"
             value={form.status}
@@ -110,6 +135,14 @@ export default function AddJobModal({ onClose, onSuccess }) {
             value={form.reminderAt}
             onChange={(e) => setForm((f) => ({ ...f, reminderAt: e.target.value }))}
             placeholder="Reminder date (optional)"
+          />
+          <textarea
+            className="input-field min-h-[60px] resize-none"
+            placeholder="Checklist (one item per line)"
+            value={form.checklistText}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, checklistText: e.target.value }))
+            }
           />
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={loading} className="btn-primary flex-1">

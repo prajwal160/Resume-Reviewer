@@ -3,8 +3,10 @@ import api from "../api/axios";
 import JobCard from "../components/JobCard";
 import StatsCard from "../components/StatsCard";
 import AddJobModal from "../components/AddJobModal";
+import { useNotifications } from "../context/NotificationsContext";
 
 export default function Dashboard() {
+  const { addNotification } = useNotifications();
   const STATUS_ORDER = ["Applied", "Interview", "Offer", "Rejected"];
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export default function Dashboard() {
     .slice(0, 5);
 
   const groupedByStatus = STATUS_ORDER.reduce((acc, status) => {
-    acc[status] = filteredJobs.filter((job) => job.status === status);
+    acc[status] = jobs.filter((job) => job.status === status);
     return acc;
   }, {});
 
@@ -83,8 +85,18 @@ export default function Dashboard() {
       const next = new Date(Date.now() + days * 86400000).toISOString();
       await api.put(`/jobs/${job._id}`, { ...job, reminderAt: next });
       fetchJobs(searchTerm.trim());
+      addNotification({
+        title: "Reminder snoozed",
+        message: `${job.company} · ${job.role} (+${days}d)`,
+        type: "success",
+      });
     } catch (err) {
       console.error(err);
+      addNotification({
+        title: "Snooze failed",
+        message: err.response?.data?.message || "Could not snooze reminder",
+        type: "error",
+      });
     }
   };
 
@@ -92,8 +104,18 @@ export default function Dashboard() {
     try {
       await api.put(`/jobs/${job._id}`, { ...job, reminderAt: null });
       fetchJobs(searchTerm.trim());
+      addNotification({
+        title: "Reminder cleared",
+        message: `${job.company} · ${job.role}`,
+        type: "success",
+      });
     } catch (err) {
       console.error(err);
+      addNotification({
+        title: "Clear failed",
+        message: err.response?.data?.message || "Could not clear reminder",
+        type: "error",
+      });
     }
   };
 
@@ -418,12 +440,21 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div className="space-y-4">
-                  {(groupedByStatus[status] || []).map((job) => (
+                  {(groupedByStatus[status] || [])
+                    .sort((a, b) => {
+                      if (a.pinned && !b.pinned) return -1;
+                      if (!a.pinned && b.pinned) return 1;
+                      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                      return bDate - aDate;
+                    })
+                    .map((job) => (
                     <JobCard
                       key={`kanban-${job._id}`}
                       job={job}
                       onUpdate={() => fetchJobs(searchTerm.trim())}
                       onDelete={() => fetchJobs(searchTerm.trim())}
+                      expandOnEdit
                     />
                   ))}
                   {(groupedByStatus[status] || []).length === 0 && (

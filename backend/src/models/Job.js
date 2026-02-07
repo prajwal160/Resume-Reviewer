@@ -16,6 +16,16 @@ const jobSchema = new mongoose.Schema(
     },
     interviewDate: Date,
     reminderAt: Date,
+    notes: String,
+    checklist: [
+      {
+        text: String,
+        done: {
+          type: Boolean,
+          default: false
+        }
+      }
+    ],
     status: {
       type: String,
       enum: ["Applied", "Interview", "Offer", "Rejected"],

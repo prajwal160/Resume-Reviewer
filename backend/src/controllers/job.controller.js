@@ -1,9 +1,26 @@
 const Job = require("../models/Job");
 
 exports.createJob = async (req, res) => {
+  const company = String(req.body.company || "").trim();
+  const role = String(req.body.role || "").trim();
+  if (company && role) {
+    const existing = await Job.findOne({
+      userId: req.user.id,
+      company: { $regex: `^${company}$`, $options: "i" },
+      role: { $regex: `^${role}$`, $options: "i" },
+    });
+    if (existing) {
+      return res.status(409).json({
+        message: "Duplicate job detected for this company and role.",
+      });
+    }
+  }
+
   const job = await Job.create({
     ...req.body,
-    userId: req.user.id
+    userId: req.user.id,
+    company,
+    role,
   });
   res.status(201).json(job);
 };
