@@ -12,16 +12,23 @@ exports.register = async (req, res) => {
   if (!email) {
     return res.status(400).json({ message: "Email is required" });
   }
-
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    return res.status(400).json({ message: "User already exists" });
+  if (!name || !password) {
+    return res.status(400).json({ message: "Name and password are required" });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  await User.insertMany([{ name, email, password: hashedPassword }]);
-
-  res.status(201).json({ message: "User registered successfully" });
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.create({ name, email, password: hashedPassword });
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res
+        .status(409)
+        .json({ message: "User already exists. Please log in." });
+    }
+    console.error("[register] error:", err);
+    res.status(500).json({ message: "Registration failed" });
+  }
 };
 
 exports.login = async (req, res) => {
@@ -29,6 +36,7 @@ exports.login = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
 
   if (!email) return res.status(400).json({ message: "Email is required" });
+  if (!password) return res.status(400).json({ message: "Password is required" });
   const user = await User.findOne({ email });
   if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
