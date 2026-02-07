@@ -122,6 +122,61 @@ const normalizeAnalysis = (raw, hasJobDescription) => {
   };
 };
 
+const isNonEmptyString = (value) =>
+  typeof value === "string" && value.trim().length > 0;
+
+const validateList = (list, { min = 1 } = {}) => {
+  if (!Array.isArray(list)) return false;
+  if (list.length < min) return false;
+  return list.every(isNonEmptyString);
+};
+
+const validateAnalysis = (analysis, hasJobDescription) => {
+  if (!analysis) return { valid: false, errors: ["analysis is null"] };
+  const errors = [];
+
+  if (!Number.isFinite(analysis.overall_score)) {
+    errors.push("overall_score missing or not a number");
+  }
+  if (
+    analysis.overall_score < 0 ||
+    analysis.overall_score > 100
+  ) {
+    errors.push("overall_score out of range");
+  }
+
+  if (hasJobDescription) {
+    if (!Number.isFinite(analysis.ats_score)) {
+      errors.push("ats_score missing or not a number");
+    } else if (analysis.ats_score < 0 || analysis.ats_score > 100) {
+      errors.push("ats_score out of range");
+    }
+  } else if (analysis.ats_score !== null) {
+    errors.push("ats_score should be null when no job description");
+  }
+
+  if (!isNonEmptyString(analysis.summary)) {
+    errors.push("summary missing");
+  }
+
+  if (!validateList(analysis.strengths)) errors.push("strengths invalid");
+  if (!validateList(analysis.improvements)) errors.push("improvements invalid");
+  if (hasJobDescription) {
+    if (!validateList(analysis.missing_keywords)) {
+      errors.push("missing_keywords invalid");
+    }
+    if (!validateList(analysis.matching_keywords)) {
+      errors.push("matching_keywords invalid");
+    }
+  }
+  if (!validateList(analysis.formatting_tips)) {
+    errors.push("formatting_tips invalid");
+  }
+  if (!validateList(analysis.action_plan)) errors.push("action_plan invalid");
+
+  return { valid: errors.length === 0, errors };
+};
+
 const extractLooseAnalysis = (text, hasJobDescription) => {
   if (!text) return null;
   const cleaned = text.replace(/\\"/g, "\"");
@@ -178,8 +233,12 @@ const formatFeedback = (analysis) => {
   return lines.join("\n");
 };
 
-const buildPrompt = ({ resumeText, jobDescription }) => {
+const buildPrompt = ({ resumeText, jobDescription, mode = "full" }) => {
   const hasJobDescription = Boolean(jobDescription?.trim());
+  const extraRules =
+    mode === "retry_short"
+      ? "- Keep summary to 1-2 sentences.\n- Keep each list item under 12 words."
+      : "";
   return `You are an expert career coach and ATS resume reviewer.
 Return ONLY valid JSON with the schema below. Do not include markdown or code fences.
 
@@ -199,8 +258,10 @@ Schema:
 Rules:
 - Be specific, concise, and actionable.
 - Provide 3-5 items for strengths, improvements, missing_keywords, matching_keywords, formatting_tips, and action_plan.
+- If there are truly no items, return ["No major issues found."] for that list.
 - If no job description is provided, set ats_score to null and missing/matching keywords to [].
 - Focus on changes that improve ATS compatibility and recruiter readability.
+${extraRules}
 
 RESUME:
 ${resumeText}
@@ -244,7 +305,7 @@ const extractResponseText = (response) => {
   return "";
 };
 
-const generateWithOpenAI = async ({ resumeText, jobDescription }) => {
+const generateWithOpenAI = async ({ resumeText, jobDescription, mode }) => {
   if (!openai) {
     throw new Error("OpenAI client not configured.");
   }
@@ -252,7 +313,7 @@ const generateWithOpenAI = async ({ resumeText, jobDescription }) => {
   const systemPrompt = `You are an expert career coach and ATS resume reviewer.
 Return only valid JSON. Do not include markdown or code fences.`;
 
-  const userPrompt = buildPrompt({ resumeText, jobDescription });
+  const userPrompt = buildPrompt({ resumeText, jobDescription, mode });
 
   const isGpt5 = /^gpt-5/i.test(DEFAULT_OPENAI_MODEL);
   let rawText = "";
@@ -307,7 +368,7 @@ Return only valid JSON. Do not include markdown or code fences.`;
   return { rawText, model: DEFAULT_OPENAI_MODEL, provider: "openai" };
 };
 
-const generateWithGemini = async ({ resumeText, jobDescription }) => {
+const generateWithGemini = async ({ resumeText, jobDescription, mode }) => {
   if (!gemini) {
     throw new Error(
       "Gemini client not configured. Install @google/generative-ai and set GEMINI_API_KEY."
@@ -315,7 +376,7 @@ const generateWithGemini = async ({ resumeText, jobDescription }) => {
   }
 
   const model = gemini.getGenerativeModel({ model: DEFAULT_GEMINI_MODEL });
-  const prompt = buildPrompt({ resumeText, jobDescription });
+  const prompt = buildPrompt({ resumeText, jobDescription, mode });
   const result = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
@@ -350,21 +411,43 @@ const generateAnalysis = async ({ resumeText, jobDescription }) => {
     );
   }
 
-  const trimmedResume = resumeText.trim().slice(0, 12000);
-  const trimmedJD = jobDescription ? jobDescription.trim().slice(0, 8000) : "";
+  const rawResume = resumeText.trim();
+  const rawJD = jobDescription ? jobDescription.trim() : "";
+  const trimmedResume = rawResume.slice(0, 12000);
+  const trimmedJD = rawJD.slice(0, 8000);
+  const shortResume = rawResume.slice(0, 6000);
+  const shortJD = rawJD.slice(0, 3500);
+  const hasJD = Boolean(trimmedJD);
 
   const generate =
     provider === "gemini" ? generateWithGemini : generateWithOpenAI;
   const { rawText, model, provider: usedProvider } = await generate({
     resumeText: trimmedResume,
     jobDescription: trimmedJD,
+    mode: "full",
   });
 
-  let analysis = normalizeAnalysis(extractJson(rawText), Boolean(trimmedJD));
-  if (!analysis) {
-    analysis = extractLooseAnalysis(rawText, Boolean(trimmedJD));
+  let analysis = normalizeAnalysis(extractJson(rawText), hasJD);
+  let validation = validateAnalysis(analysis, hasJD);
+
+  if (!validation.valid) {
+    const retry = await generate({
+      resumeText: shortResume,
+      jobDescription: shortJD,
+      mode: "retry_short",
+    });
+    analysis = normalizeAnalysis(extractJson(retry.rawText), hasJD);
+    validation = validateAnalysis(analysis, hasJD);
   }
-  const feedback = analysis ? formatFeedback(analysis) : rawText || "";
+
+  if (!validation.valid) {
+    console.error("[analysis] schema validation failed", validation.errors);
+    throw new Error(
+      "AI response did not match the expected schema. Please try again."
+    );
+  }
+
+  const feedback = formatFeedback(analysis);
 
   return {
     provider: usedProvider,
