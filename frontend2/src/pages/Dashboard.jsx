@@ -26,7 +26,14 @@ export default function Dashboard() {
   });
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedWeekStart, setSelectedWeekStart] = useState(null);
+  const [weekHighlightEnabled, setWeekHighlightEnabled] = useState(false);
   const [snoozeSelection, setSnoozeSelection] = useState({});
+  const [calendarFilters, setCalendarFilters] = useState({
+    Applied: true,
+    Interview: true,
+    Reminder: true,
+  });
   const didInit = useRef(false);
 
   const fetchJobs = async (query = "") => {
@@ -220,10 +227,34 @@ export default function Dashboard() {
   };
 
   const formatKey = (date) => date.toISOString().slice(0, 10);
+  const weekStart = (date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - start.getDay());
+    return start;
+  };
+  const isSameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  const isInWeek = (date, start) => {
+    if (!start) return false;
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return date >= start && date <= end;
+  };
   const monthDays = buildMonthDays(calendarMonth);
+  const activeWeekStart = selectedWeekStart
+    ? new Date(selectedWeekStart)
+    : weekStart(calendarMonth);
+  const weekDays = Array.from({ length: 7 }, (_, idx) => {
+    const day = new Date(activeWeekStart);
+    day.setDate(activeWeekStart.getDate() + idx);
+    return day;
+  });
   const eventsByDate = jobs.reduce((acc, job) => {
     const addEvent = (dt, label) => {
-      if (!dt) return;
+      if (!dt || !calendarFilters[label]) return;
       const key = formatKey(new Date(dt));
       if (!acc[key]) acc[key] = [];
       acc[key].push({ job, label });
@@ -564,30 +595,116 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-6">
             <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  onClick={() =>
-                    setCalendarMonth(
-                      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-                    )
-                  }
-                  className="text-sm text-slate-600 hover:text-slate-800"
-                >
-                  Prev
-                </button>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {calendarMonth.toLocaleString("default", { month: "long", year: "numeric" })}
-                </h3>
-                <button
-                  onClick={() =>
-                    setCalendarMonth(
-                      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-                    )
-                  }
-                  className="text-sm text-slate-600 hover:text-slate-800"
-                >
-                  Next
-                </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      setCalendarMonth(
+                        (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+                      )
+                    }
+                    className="text-sm text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+                  >
+                    Prev
+                  </button>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {calendarMonth.toLocaleString("default", { month: "long", year: "numeric" })}
+                  </h3>
+                  <button
+                    onClick={() =>
+                      setCalendarMonth(
+                        (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+                      )
+                    }
+                    className="text-sm text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+                      setSelectedDate(formatKey(today));
+                      setSelectedWeekStart(weekStart(today));
+                      setWeekHighlightEnabled(false);
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const start = weekStart(today);
+                      setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+                      setSelectedDate(formatKey(today));
+                      setSelectedWeekStart(start);
+                      setWeekHighlightEnabled(true);
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500"
+                  >
+                    This Week
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {["Applied", "Interview", "Reminder"].map((label) => (
+                    <button
+                      key={label}
+                      onClick={() =>
+                        setCalendarFilters((prev) => ({ ...prev, [label]: !prev[label] }))
+                      }
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                        calendarFilters[label]
+                          ? "bg-slate-900 text-white border-slate-900 dark:bg-primary-600 dark:border-primary-600"
+                          : "bg-white text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    Applied
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    Interview
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-sky-500" />
+                    Reminder
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-2 mb-4">
+                {weekDays.map((date) => (
+                  <button
+                    key={`week-${formatKey(date)}`}
+                    onClick={() => {
+                      setSelectedDate(formatKey(date));
+                      setSelectedWeekStart(weekStart(date));
+                      setWeekHighlightEnabled(true);
+                      setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                    }}
+                    className={`rounded-xl border px-2 py-2 text-center text-xs transition-colors ${
+                      selectedDate === formatKey(date)
+                        ? "border-primary-500 bg-primary-50 text-primary-700"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500"
+                    }`}
+                  >
+                    <div className="text-[10px] uppercase tracking-wide">
+                      {date.toLocaleDateString("default", { weekday: "short" })}
+                    </div>
+                    <div className="text-sm font-semibold">{date.getDate()}</div>
+                  </button>
+                ))}
               </div>
               <div className="grid grid-cols-7 gap-2 text-xs text-slate-400 mb-2">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -602,15 +719,28 @@ export default function Dashboard() {
                   const events = eventsByDate[key] || [];
                   const isCurrentMonth = date.getMonth() === calendarMonth.getMonth();
                   const isSelected = selectedDate === key;
+                  const typeColor = (label) => {
+                    if (label === "Applied") return "bg-emerald-500 text-white";
+                    if (label === "Interview") return "bg-amber-500 text-white";
+                    return "bg-sky-500 text-white";
+                  };
                   return (
                     <button
                       key={key}
-                      onClick={() => setSelectedDate(key)}
+                      onClick={() => {
+                        setSelectedDate(key);
+                        setSelectedWeekStart(weekStart(date));
+                        setWeekHighlightEnabled(false);
+                      }}
                       className={`min-h-[84px] rounded-xl border p-2 text-left transition-colors ${
                         isSelected
                           ? "border-primary-500 bg-primary-50"
                           : "border-slate-200 hover:border-slate-300"
-                      } ${isCurrentMonth ? "bg-white" : "bg-slate-50 text-slate-400"}`}
+                      } ${isCurrentMonth ? "bg-white" : "bg-slate-50 text-slate-400"} ${
+                        weekHighlightEnabled && isInWeek(date, activeWeekStart) && !isSelected
+                          ? "ring-1 ring-primary-100"
+                          : ""
+                      }`}
                     >
                       <div className="text-xs font-medium">{date.getDate()}</div>
                       {events.length > 0 && (
@@ -618,7 +748,9 @@ export default function Dashboard() {
                           {events.slice(0, 2).map((event, idx) => (
                             <div
                               key={`${key}-${idx}`}
-                              className="text-[10px] rounded-full bg-slate-100 px-2 py-0.5 text-slate-600"
+                              className={`text-[10px] rounded-full px-2 py-0.5 ${typeColor(
+                                event.label
+                              )}`}
                             >
                               {event.label}: {event.job.company}
                             </div>
@@ -651,7 +783,17 @@ export default function Dashboard() {
                         <p className="text-sm font-medium text-slate-800">
                           {event.job.company} · {event.job.role}
                         </p>
-                        <p className="text-xs text-slate-500">{event.label}</p>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${
+                            event.label === "Applied"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : event.label === "Interview"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-sky-100 text-sky-700"
+                          }`}
+                        >
+                          {event.label}
+                        </span>
                       </div>
                       <span className="text-xs text-slate-400">{event.job.status}</span>
                     </div>
