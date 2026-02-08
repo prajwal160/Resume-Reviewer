@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import i18n from "./i18n";
 import Navbar from "./components/Navbar";
@@ -10,12 +10,25 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ResumeReview from "./pages/ResumeReview";
 import Profile from "./pages/Profile";
+import Pricing from "./pages/Pricing";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailure from "./pages/PaymentFailure";
+import Help from "./pages/Help";
 import { NotificationsProvider } from "./context/NotificationsContext";
+import Footer from "./components/Footer";
 
 const isAuthenticated = () => !!localStorage.getItem("token");
 
 function ProtectedRoute({ children }) {
   return isAuthenticated() ? children : <Navigate to="/login" replace />;
+}
+
+function ScrollToTop() {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.pathname]);
+  return null;
 }
 
 function App() {
@@ -39,6 +52,7 @@ function App() {
   return (
     <NotificationsProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Navbar />
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -46,6 +60,22 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route
+            path="/pricing"
+            element={
+              <ProtectedRoute>
+                <Pricing />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment-success"
+            element={<PaymentSuccess />}
+          />
+          <Route
+            path="/payment-failure"
+            element={<PaymentFailure />}
+          />
           <Route
             path="/dashboard"
             element={
@@ -70,7 +100,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/help"
+            element={
+              <ProtectedRoute>
+                <Help />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
+        <Footer />
       </BrowserRouter>
     </NotificationsProvider>
   );

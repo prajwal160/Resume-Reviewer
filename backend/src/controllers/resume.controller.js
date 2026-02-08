@@ -25,11 +25,14 @@ const { generateAnalysis } = require("../services/aiClient");
 
 exports.analyzeResume = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("isPremium resumeReviewCount");
+    const user = await User.findById(req.user.id).select("isPremium premiumUntil resumeReviewCount");
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
-    if (!user.isPremium) {
+    const now = new Date();
+    const premiumActive =
+      user.isPremium && (!user.premiumUntil || user.premiumUntil > now);
+    if (!premiumActive) {
       let used = Number.isFinite(user.resumeReviewCount) ? user.resumeReviewCount : 0;
       if (!Number.isFinite(user.resumeReviewCount)) {
         used = await ResumeReview.countDocuments({ userId: req.user.id });

@@ -115,28 +115,41 @@ export default function AddJobModal({ onClose, onSuccess }) {
             <option value="Rejected">Rejected</option>
           </select>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <input
-              type="date"
-              className="input-field"
-              value={form.appliedDate}
-              onChange={(e) => setForm((f) => ({ ...f, appliedDate: e.target.value }))}
-            />
-            <input
-              type="date"
-              className="input-field"
-              value={form.interviewDate}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, interviewDate: e.target.value }))
-              }
-              placeholder="Interview date (optional)"
-            />
-            <input
-              type="date"
-              className="input-field"
-              value={form.reminderAt}
-              onChange={(e) => setForm((f) => ({ ...f, reminderAt: e.target.value }))}
-              placeholder="Reminder date (optional)"
-            />
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                Applied date
+              </label>
+              <input
+                type="date"
+                className="input-field"
+                value={form.appliedDate}
+                onChange={(e) => setForm((f) => ({ ...f, appliedDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                Interview date (optional)
+              </label>
+              <input
+                type="date"
+                className="input-field"
+                value={form.interviewDate}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, interviewDate: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                Reminder date (optional)
+              </label>
+              <input
+                type="date"
+                className="input-field"
+                value={form.reminderAt}
+                onChange={(e) => setForm((f) => ({ ...f, reminderAt: e.target.value }))}
+              />
+            </div>
           </div>
           <textarea
             className="input-field min-h-[44px] resize-none"

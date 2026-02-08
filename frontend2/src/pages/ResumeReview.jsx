@@ -9,6 +9,7 @@ export default function ResumeReview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [premiumRequired, setPremiumRequired] = useState(false);
   const fileInputRef = useRef(null);
 
   const normalizeScore = (value) =>
@@ -60,6 +61,7 @@ export default function ResumeReview() {
     e.preventDefault();
     setError("");
     setResult(null);
+    setPremiumRequired(false);
     setLoading(true);
 
     try {
@@ -90,9 +92,14 @@ export default function ResumeReview() {
         );
       }
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Failed to analyze resume. Make sure OPENAI_API_KEY is set on the server."
-      );
+      if (err.response?.status === 402 && err.response?.data?.requiresPremium) {
+        setPremiumRequired(true);
+        setError(err.response?.data?.message || "Premium required.");
+      } else {
+        setError(
+          err.response?.data?.message || "Failed to analyze resume. Make sure OPENAI_API_KEY is set on the server."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -142,10 +149,34 @@ export default function ResumeReview() {
           </button>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] mb-8 dark:border-slate-800 dark:bg-slate-900/90"
-        >
+        {premiumRequired ? (
+          <div className="rounded-3xl border-2 border-primary-500 bg-white/90 p-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] mb-8 dark:bg-slate-900/90">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                  Premium required
+                </h2>
+                <p className="text-slate-600 mt-2 dark:text-slate-300">
+                  You have used your free resume review. Upgrade to unlock unlimited reviews.
+                </p>
+                <ul className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                  <li>• Unlimited AI resume reviews</li>
+                  <li>• Detailed ATS insights</li>
+                  <li>• Priority processing</li>
+                </ul>
+              </div>
+              <div className="shrink-0">
+                <a href="/pricing" className="btn-primary">
+                  Upgrade to Premium
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] mb-8 dark:border-slate-800 dark:bg-slate-900/90"
+          >
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
               Job Description
@@ -218,7 +249,8 @@ export default function ResumeReview() {
               "Analyze Resume"
             )}
           </button>
-        </form>
+          </form>
+        )}
 
         {result && (
           <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-8 shadow-[0_12px_40px_rgba(15,23,42,0.08)] animate-slide-up dark:border-slate-800 dark:bg-slate-900/95">

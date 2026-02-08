@@ -231,32 +231,47 @@ export default function JobCard({
         value={form.notes}
         onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
       />
-      <input
-        type="date"
-        className="input-field mb-4"
-        value={form.appliedDate}
-        onChange={(e) =>
-          setForm((f) => ({ ...f, appliedDate: e.target.value }))
-        }
-      />
-      <input
-        type="date"
-        className="input-field mb-4"
-        value={form.interviewDate}
-        onChange={(e) =>
-          setForm((f) => ({ ...f, interviewDate: e.target.value }))
-        }
-        placeholder="Interview date"
-      />
-      <input
-        type="date"
-        className="input-field mb-4"
-        value={form.reminderAt}
-        onChange={(e) =>
-          setForm((f) => ({ ...f, reminderAt: e.target.value }))
-        }
-        placeholder="Reminder date"
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">
+            Applied date
+          </label>
+          <input
+            type="date"
+            className="input-field"
+            value={form.appliedDate}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, appliedDate: e.target.value }))
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">
+            Interview date (optional)
+          </label>
+          <input
+            type="date"
+            className="input-field"
+            value={form.interviewDate}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, interviewDate: e.target.value }))
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">
+            Reminder date (optional)
+          </label>
+          <input
+            type="date"
+            className="input-field"
+            value={form.reminderAt}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, reminderAt: e.target.value }))
+            }
+          />
+        </div>
+      </div>
       <div className="mb-4">
         <p className="text-sm font-medium text-slate-700 mb-2">Checklist</p>
         <div className="space-y-2">

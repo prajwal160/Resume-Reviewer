@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema(
     resumeReviewCount: {
       type: Number,
       default: 0
+    },
+    premiumUntil: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

@@ -21,12 +21,14 @@ export default function Navbar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [profilePinned, setProfilePinned] = useState(false);
   const [notificationsPinned, setNotificationsPinned] = useState(false);
+  const [showHelpMenu, setShowHelpMenu] = useState(false);
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
     return localStorage.getItem("theme") || "light";
   });
   const profileRef = useRef(null);
   const notificationsRef = useRef(null);
+  const helpRef = useRef(null);
   const profileTimerRef = useRef(null);
   const notificationsTimerRef = useRef(null);
   const { notifications, unreadCount, markAllRead, markRead } =
@@ -44,6 +46,8 @@ export default function Navbar() {
             avatarUrl: res.data?.avatarUrl || "",
             themePreference: res.data?.themePreference || "light",
             languagePreference: res.data?.languagePreference || "en",
+            isPremium: res.data?.isPremium || false,
+            premiumUntil: res.data?.premiumUntil || null,
           });
           const preferred = res.data?.themePreference === "dark" ? "dark" : "light";
           setTheme(preferred);
@@ -83,8 +87,10 @@ export default function Navbar() {
     const handleClickOutside = (event) => {
       const profileEl = profileRef.current;
       const notifyEl = notificationsRef.current;
+      const helpEl = helpRef.current;
       const clickedProfile = profileEl && profileEl.contains(event.target);
       const clickedNotify = notifyEl && notifyEl.contains(event.target);
+      const clickedHelp = helpEl && helpEl.contains(event.target);
       if (!clickedProfile) {
         setShowProfileMenu(false);
         setProfilePinned(false);
@@ -92,6 +98,9 @@ export default function Navbar() {
       if (!clickedNotify) {
         setShowNotifications(false);
         setNotificationsPinned(false);
+      }
+      if (!clickedHelp) {
+        setShowHelpMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -127,6 +136,16 @@ export default function Navbar() {
           </Link>
 
           <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard?view=calendar&date=today")}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:text-white"
+              title="Calendar"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
             <Link
               to="/dashboard"
               className={`font-medium transition-colors ${
@@ -147,6 +166,57 @@ export default function Navbar() {
             >
               {t("nav.resumeReview")}
             </Link>
+            <Link
+              to="/pricing"
+              className={`hidden sm:inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
+                profile.isPremium
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-primary-200 bg-primary-50 text-primary-700 hover:border-primary-300"
+              }`}
+            >
+              {profile.isPremium ? "Premium" : "Upgrade"}
+              {profile.isPremium ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                  Active
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-100 text-primary-700">
+                  Free
+                </span>
+              )}
+            </Link>
+            <div className="relative" ref={helpRef}>
+              <button
+                type="button"
+                onClick={() => setShowHelpMenu((prev) => !prev)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:text-white"
+                title="Help"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9a3.5 3.5 0 116.544 1.75c-.732.78-1.272 1.199-1.272 2.25v.5M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              {showHelpMenu && (
+                <div className="absolute right-0 mt-3 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowHelpMenu(false);
+                      navigate("/help");
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    FAQ & Docs
+                  </button>
+                  <a
+                    href="mailto:support@jobflow.app"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Contact support
+                  </a>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={async () => {

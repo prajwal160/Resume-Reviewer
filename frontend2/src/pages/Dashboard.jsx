@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../api/axios";
 import JobCard from "../components/JobCard";
 import StatsCard from "../components/StatsCard";
@@ -6,6 +7,7 @@ import AddJobModal from "../components/AddJobModal";
 import { useNotifications } from "../context/NotificationsContext";
 
 export default function Dashboard() {
+  const location = useLocation();
   const { addNotification } = useNotifications();
   const STATUS_ORDER = ["Applied", "Interview", "Offer", "Rejected"];
   const WIP_LIMITS = {
@@ -34,6 +36,7 @@ export default function Dashboard() {
     Interview: true,
     Reminder: true,
   });
+  const calendarSectionRef = useRef(null);
   const didInit = useRef(false);
 
   const fetchJobs = async (query = "") => {
@@ -61,6 +64,25 @@ export default function Dashboard() {
     }, delay);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const view = params.get("view");
+    const date = params.get("date");
+    if (view && ["list", "kanban", "calendar"].includes(view)) {
+      setViewMode(view);
+    }
+    if (date === "today") {
+      const today = new Date();
+      setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+      setSelectedDate(today.toISOString().slice(0, 10));
+    }
+    if (view === "calendar") {
+      setTimeout(() => {
+        calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -593,7 +615,7 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6" ref={calendarSectionRef}>
             <div className="card p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                 <div className="flex items-center gap-3">
