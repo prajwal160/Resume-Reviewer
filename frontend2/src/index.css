@@ -27,6 +27,11 @@
   .dark .input-field::placeholder {
     color: #64748b;
   }
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
   .dark input:-webkit-autofill,
   .dark input:-webkit-autofill:hover,
   .dark input:-webkit-autofill:focus,

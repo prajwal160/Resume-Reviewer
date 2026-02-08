@@ -16,6 +16,10 @@ const jobSchema = new mongoose.Schema(
     },
     interviewDate: Date,
     reminderAt: Date,
+    lastSnoozeDays: {
+      type: Number,
+      default: null
+    },
     notes: String,
     checklist: [
       {

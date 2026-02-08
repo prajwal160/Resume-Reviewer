@@ -160,7 +160,7 @@ export default function ResumeReview() {
           {mode === "upload" ? (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 rounded-3xl p-10 text-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/40 transition-all bg-white dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/80"
+              className="border-2 border-dashed border-slate-300 rounded-3xl p-10 text-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/40 transition-all bg-white dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/80 dark:hover:border-slate-600"
             >
               <input
                 ref={fileInputRef}

@@ -8,6 +8,12 @@ import { useNotifications } from "../context/NotificationsContext";
 export default function Dashboard() {
   const { addNotification } = useNotifications();
   const STATUS_ORDER = ["Applied", "Interview", "Offer", "Rejected"];
+  const WIP_LIMITS = {
+    Applied: 10,
+    Interview: 5,
+    Offer: 3,
+    Rejected: 999,
+  };
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,6 +26,7 @@ export default function Dashboard() {
   });
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [snoozeSelection, setSnoozeSelection] = useState({});
   const didInit = useRef(false);
 
   const fetchJobs = async (query = "") => {
@@ -54,6 +61,16 @@ export default function Dashboard() {
     }
   }, [statusFilter]);
 
+  useEffect(() => {
+    const next = {};
+    jobs.forEach((job) => {
+      if (Number.isFinite(job.lastSnoozeDays)) {
+        next[job._id] = job.lastSnoozeDays;
+      }
+    });
+    setSnoozeSelection(next);
+  }, [jobs]);
+
   const statusCount = (status) => jobs.filter((j) => j.status === status).length;
   const filteredJobs =
     statusFilter === "All"
@@ -74,6 +91,70 @@ export default function Dashboard() {
     acc[status] = jobs.filter((job) => job.status === status);
     return acc;
   }, {});
+  const stageAgeDays = (job) => {
+    const base = job.updatedAt || job.appliedDate || job.createdAt;
+    if (!base) return null;
+    const diffMs = Date.now() - new Date(base).getTime();
+    return Math.max(0, Math.floor(diffMs / 86400000));
+  };
+  const averageStageAge = (list) => {
+    if (!list.length) return 0;
+    const sum = list
+      .map((job) => stageAgeDays(job))
+      .filter((v) => Number.isFinite(v))
+      .reduce((a, b) => a + b, 0);
+    return Math.round(sum / Math.max(1, list.length));
+  };
+
+  const moveJob = async (job, direction) => {
+    const idx = STATUS_ORDER.indexOf(job.status);
+    const nextIdx = direction === "left" ? idx - 1 : idx + 1;
+    if (nextIdx < 0 || nextIdx >= STATUS_ORDER.length) return;
+    const nextStatus = STATUS_ORDER[nextIdx];
+    try {
+      await api.put(`/jobs/${job._id}`, { ...job, status: nextStatus });
+      fetchJobs(searchTerm.trim());
+      addNotification({
+        title: "Status updated",
+        message: `${job.company} moved to ${nextStatus}`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      addNotification({
+        title: "Move failed",
+        message: err.response?.data?.message || "Could not move job",
+        type: "error",
+      });
+    }
+  };
+
+  const handleDragStart = (event, job) => {
+    event.dataTransfer.setData("text/plain", job._id);
+  };
+
+  const handleDrop = async (event, status) => {
+    event.preventDefault();
+    const jobId = event.dataTransfer.getData("text/plain");
+    const job = jobs.find((item) => item._id === jobId);
+    if (!job || job.status === status) return;
+    try {
+      await api.put(`/jobs/${job._id}`, { ...job, status });
+      fetchJobs(searchTerm.trim());
+      addNotification({
+        title: "Status updated",
+        message: `${job.company} moved to ${status}`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      addNotification({
+        title: "Move failed",
+        message: err.response?.data?.message || "Could not move job",
+        type: "error",
+      });
+    }
+  };
 
   const upcomingReminders = jobs
     .filter((job) => job.reminderAt)
@@ -82,8 +163,13 @@ export default function Dashboard() {
 
   const handleSnooze = async (job, days) => {
     try {
-      const next = new Date(Date.now() + days * 86400000).toISOString();
-      await api.put(`/jobs/${job._id}`, { ...job, reminderAt: next });
+      const base = job.reminderAt ? new Date(job.reminderAt) : new Date();
+      const next = new Date(base.getTime() + days * 86400000).toISOString();
+      await api.put(`/jobs/${job._id}`, {
+        ...job,
+        reminderAt: next,
+        lastSnoozeDays: days,
+      });
       fetchJobs(searchTerm.trim());
       addNotification({
         title: "Reminder snoozed",
@@ -102,7 +188,7 @@ export default function Dashboard() {
 
   const handleClearReminder = async (job) => {
     try {
-      await api.put(`/jobs/${job._id}`, { ...job, reminderAt: null });
+      await api.put(`/jobs/${job._id}`, { ...job, reminderAt: null, lastSnoozeDays: null });
       fetchJobs(searchTerm.trim());
       addNotification({
         title: "Reminder cleared",
@@ -117,15 +203,6 @@ export default function Dashboard() {
         type: "error",
       });
     }
-  };
-
-  const getSnoozeDays = (reminderAt) => {
-    if (!reminderAt) return null;
-    const now = new Date();
-    const target = new Date(reminderAt);
-    const diffMs = target.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0);
-    const diffDays = Math.round(diffMs / 86400000);
-    return diffDays > 0 ? diffDays : null;
   };
 
   const buildMonthDays = (date) => {
@@ -385,17 +462,17 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-500">
                           Reminder: {new Date(job.reminderAt).toLocaleDateString()}
                         </p>
+                        {Number.isFinite(job.lastSnoozeDays) && (
+                          <p className="text-[11px] text-slate-400">
+                            Last snoozed +{job.lastSnoozeDays}d
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {(() => {
-                          const snoozeDays = getSnoozeDays(job.reminderAt);
-                          return (
-                            <>
                         <button
                           onClick={() => handleSnooze(job, 1)}
-                          disabled={snoozeDays === 1}
                           className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                            snoozeDays === 1
+                            snoozeSelection[job._id] === 1
                               ? "bg-primary-600 text-white border-primary-600"
                               : "border-slate-200 text-slate-600 hover:border-slate-300"
                           }`}
@@ -404,9 +481,8 @@ export default function Dashboard() {
                         </button>
                         <button
                           onClick={() => handleSnooze(job, 3)}
-                          disabled={snoozeDays === 3}
                           className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                            snoozeDays === 3
+                            snoozeSelection[job._id] === 3
                               ? "bg-primary-600 text-white border-primary-600"
                               : "border-slate-200 text-slate-600 hover:border-slate-300"
                           }`}
@@ -419,9 +495,6 @@ export default function Dashboard() {
                         >
                           Clear
                         </button>
-                            </>
-                          );
-                        })()}
                       </div>
                     </div>
                   ))}
@@ -432,11 +505,29 @@ export default function Dashboard() {
         ) : viewMode === "kanban" ? (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {STATUS_ORDER.map((status) => (
-              <div key={status} className="card p-4">
+              <div
+                key={status}
+                className="card p-4"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => handleDrop(event, status)}
+              >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-800">{status}</h3>
-                  <span className="text-xs text-slate-500">
-                    {groupedByStatus[status]?.length || 0}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">{status}</h3>
+                    <p className="text-[11px] text-slate-500">
+                      {groupedByStatus[status]?.length || 0} jobs · Avg{" "}
+                      {averageStageAge(groupedByStatus[status] || [])}d
+                    </p>
+                  </div>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full border ${
+                      (groupedByStatus[status]?.length || 0) > (WIP_LIMITS[status] || 999)
+                        ? "border-red-300 bg-red-50 text-red-700"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
+                    }`}
+                    title={`WIP limit ${WIP_LIMITS[status] || "—"}`}
+                  >
+                    WIP {WIP_LIMITS[status] || "—"}
                   </span>
                 </div>
                 <div className="space-y-4">
@@ -449,14 +540,20 @@ export default function Dashboard() {
                       return bDate - aDate;
                     })
                     .map((job) => (
-                    <JobCard
-                      key={`kanban-${job._id}`}
-                      job={job}
-                      onUpdate={() => fetchJobs(searchTerm.trim())}
-                      onDelete={() => fetchJobs(searchTerm.trim())}
-                      expandOnEdit
-                    />
-                  ))}
+                      <div key={`drag-${job._id}`} draggable onDragStart={(event) => handleDragStart(event, job)}>
+                        <JobCard
+                          key={`kanban-${job._id}`}
+                          job={job}
+                          onUpdate={() => fetchJobs(searchTerm.trim())}
+                          onDelete={() => fetchJobs(searchTerm.trim())}
+                          expandOnEdit
+                          showQuickMove
+                          onMoveLeft={() => moveJob(job, "left")}
+                          onMoveRight={() => moveJob(job, "right")}
+                          ageDays={stageAgeDays(job)}
+                        />
+                      </div>
+                    ))}
                   {(groupedByStatus[status] || []).length === 0 && (
                     <p className="text-xs text-slate-400">No jobs here.</p>
                   )}

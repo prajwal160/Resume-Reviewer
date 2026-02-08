@@ -53,7 +53,8 @@ export default function Register() {
               </div>
             )}
             <input
-              className="input-field dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+              autoComplete="name"
+              className="input-field dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:[color-scheme:dark]"
               placeholder="Full name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -61,7 +62,8 @@ export default function Register() {
             />
             <input
               type="email"
-              className="input-field dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+              autoComplete="email"
+              className="input-field dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:[color-scheme:dark]"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -70,7 +72,8 @@ export default function Register() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="input-field pr-12 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                autoComplete="new-password"
+                className="input-field pr-12 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:[color-scheme:dark]"
                 placeholder="Password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

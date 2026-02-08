@@ -17,7 +17,16 @@ const STATUS_ACTIVE = {
   Rejected: "bg-red-100 text-red-800 border-red-200",
 };
 
-export default function JobCard({ job, onUpdate, onDelete, expandOnEdit = false }) {
+export default function JobCard({
+  job,
+  onUpdate,
+  onDelete,
+  expandOnEdit = false,
+  showQuickMove = false,
+  onMoveLeft,
+  onMoveRight,
+  ageDays,
+}) {
   const { addNotification } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -372,6 +381,11 @@ export default function JobCard({ job, onUpdate, onDelete, expandOnEdit = false 
             )}
           </div>
           <p className="text-slate-600">{job.role}</p>
+          {Number.isFinite(ageDays) && ageDays > 0 && (
+            <span className="mt-2 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+              {ageDays}d in stage
+            </span>
+          )}
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
@@ -470,6 +484,26 @@ export default function JobCard({ job, onUpdate, onDelete, expandOnEdit = false 
             </button>
           );
         })}
+        {showQuickMove && (
+          <>
+            <button
+              onClick={onMoveLeft}
+              disabled={loading || !onMoveLeft}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-700 transition-colors"
+              title="Move left"
+            >
+              ← Move
+            </button>
+            <button
+              onClick={onMoveRight}
+              disabled={loading || !onMoveRight}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-700 transition-colors"
+              title="Move right"
+            >
+              Move →
+            </button>
+          </>
+        )}
         <button
           onClick={() => handleReminder(new Date(Date.now() + 86400000).toISOString())}
           disabled={loading}

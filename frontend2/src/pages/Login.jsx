@@ -47,7 +47,8 @@ export default function Login() {
             )}
             <input
               type="email"
-              className="input-field dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+              autoComplete="email"
+              className="input-field dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:[color-scheme:dark]"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -56,7 +57,8 @@ export default function Login() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                className="input-field pr-12 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                autoComplete="current-password"
+                className="input-field pr-12 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:[color-scheme:dark]"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

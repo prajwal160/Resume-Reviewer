@@ -47,9 +47,14 @@ exports.getJobs = async (req, res) => {
 };
 
 exports.updateJob = async (req, res) => {
+  const update = { ...req.body };
+  if (update.reminderAt === null || update.reminderAt === "") {
+    update.reminderAt = null;
+    update.lastSnoozeDays = null;
+  }
   const job = await Job.findOneAndUpdate(
     { _id: req.params.id, userId: req.user.id },
-    req.body,
+    update,
     { new: true }
   );
   res.json(job);
