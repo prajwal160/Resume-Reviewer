@@ -1,5 +1,6 @@
 ﻿import { useState, useRef } from "react";
 import api from "../api/axios";
+import { jsPDF } from "jspdf";
 
 export default function ResumeReview() {
   const [mode, setMode] = useState("upload");
@@ -44,6 +45,84 @@ export default function ResumeReview() {
         ))}
       </div>
     );
+  };
+
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportFeedbackCsv = () => {
+    if (!result) return;
+    const analysis = result.analysis;
+    const rows = [];
+    if (analysis) {
+      rows.push(["overall_score", analysis.overall_score ?? ""]);
+      rows.push(["ats_score", analysis.ats_score ?? ""]);
+      rows.push(["summary", analysis.summary ?? ""]);
+      const pushList = (label, items) => {
+        (items || []).forEach((item) => rows.push([label, item]));
+      };
+      pushList("strengths", analysis.strengths);
+      pushList("improvements", analysis.improvements);
+      pushList("missing_keywords", analysis.missing_keywords);
+      pushList("matching_keywords", analysis.matching_keywords);
+      pushList("formatting_tips", analysis.formatting_tips);
+      pushList("action_plan", analysis.action_plan);
+    } else if (result.feedback) {
+      rows.push(["feedback", result.feedback]);
+    }
+    const lines = [
+      "section,value",
+      ...rows.map(
+        (r) => `"${r[0]}","${String(r[1] || "").replace(/"/g, '""')}"`
+      ),
+    ];
+    downloadBlob(new Blob([lines.join("\n")], { type: "text/csv" }), "resume-feedback.csv");
+  };
+
+  const exportFeedbackPdf = () => {
+    if (!result) return;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("Resume Feedback", 14, 16);
+    doc.setFontSize(10);
+    let y = 24;
+    const lineHeight = 6;
+    const addText = (label, value) => {
+      const lines = doc.splitTextToSize(`${label}: ${value}`, 180);
+      lines.forEach((l) => {
+        if (y > 280) {
+          doc.addPage();
+          y = 16;
+        }
+        doc.text(l, 14, y);
+        y += lineHeight;
+      });
+    };
+    if (result.analysis) {
+      const a = result.analysis;
+      addText("Overall Score", a.overall_score ?? "");
+      addText("ATS Score", a.ats_score ?? "");
+      addText("Summary", a.summary || "");
+      const addList = (label, items) => {
+        addText(label, "");
+        (items || []).forEach((item) => addText("-", item));
+      };
+      addList("Strengths", a.strengths);
+      addList("Improvements", a.improvements);
+      addList("Missing Keywords", a.missing_keywords);
+      addList("Matching Keywords", a.matching_keywords);
+      addList("Formatting Tips", a.formatting_tips);
+      addList("Action Plan", a.action_plan);
+    } else if (result.feedback) {
+      addText("Feedback", result.feedback);
+    }
+    doc.save("resume-feedback.pdf");
   };
 
   const handleFileChange = (e) => {
@@ -260,6 +339,14 @@ export default function ResumeReview() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Detailed review based on your resume and job description
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={exportFeedbackCsv} className="btn-secondary">
+                  Export CSV
+                </button>
+                <button onClick={exportFeedbackPdf} className="btn-primary">
+                  Export PDF
+                </button>
               </div>
             </div>
 

@@ -1,10 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import api from "../api/axios";
 import JobCard from "../components/JobCard";
 import StatsCard from "../components/StatsCard";
 import AddJobModal from "../components/AddJobModal";
 import { useNotifications } from "../context/NotificationsContext";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Bar, Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
 export default function Dashboard() {
   const location = useLocation();
@@ -114,7 +128,67 @@ export default function Dashboard() {
   });
   const recentActivity = [...jobs]
     .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-    .slice(0, 5);
+    .slice(0, 8);
+
+  const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : "");
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const exportJobsCsv = () => {
+    const rows = sortedJobs.map((job) => ({
+      Company: job.company || "",
+      Role: job.role || "",
+      Status: job.status || "",
+      AppliedDate: formatDate(job.appliedDate),
+      InterviewDate: formatDate(job.interviewDate),
+      ReminderDate: formatDate(job.reminderAt),
+      Notes: (job.notes || "").replace(/\s+/g, " ").trim(),
+    }));
+    const headers = Object.keys(rows[0] || {
+      Company: "",
+      Role: "",
+      Status: "",
+      AppliedDate: "",
+      InterviewDate: "",
+      ReminderDate: "",
+      Notes: "",
+    });
+    const lines = [
+      headers.join(","),
+      ...rows.map((row) =>
+        headers
+          .map((key) => `"${String(row[key] || "").replace(/"/g, '""')}"`)
+          .join(",")
+      ),
+    ];
+    downloadBlob(new Blob([lines.join("\n")], { type: "text/csv" }), "jobflow-jobs.csv");
+  };
+  const exportJobsPdf = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("JobFlow - Job List", 14, 16);
+    const rows = sortedJobs.map((job) => [
+      job.company || "",
+      job.role || "",
+      job.status || "",
+      formatDate(job.appliedDate),
+      formatDate(job.interviewDate),
+      formatDate(job.reminderAt),
+    ]);
+    autoTable(doc, {
+      startY: 22,
+      head: [["Company", "Role", "Status", "Applied", "Interview", "Reminder"]],
+      body: rows,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+    });
+    doc.save("jobflow-jobs.pdf");
+  };
 
   const groupedByStatus = STATUS_ORDER.reduce((acc, status) => {
     acc[status] = jobs.filter((job) => job.status === status);
@@ -134,6 +208,19 @@ export default function Dashboard() {
       .reduce((a, b) => a + b, 0);
     return Math.round(sum / Math.max(1, list.length));
   };
+  const remindersNext7 = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() + i);
+    const label = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const count = jobs.filter((j) => {
+      if (!j.reminderAt) return false;
+      const rd = new Date(j.reminderAt);
+      rd.setHours(0, 0, 0, 0);
+      return rd.getTime() === day.getTime();
+    }).length;
+    return { label, count };
+  });
 
   const moveJob = async (job, direction) => {
     const idx = STATUS_ORDER.indexOf(job.status);
@@ -202,7 +289,7 @@ export default function Dashboard() {
       fetchJobs(searchTerm.trim());
       addNotification({
         title: "Reminder snoozed",
-        message: `${job.company} · ${job.role} (+${days}d)`,
+        message: `${job.company} Â· ${job.role} (+${days}d)`,
         type: "success",
       });
     } catch (err) {
@@ -221,7 +308,7 @@ export default function Dashboard() {
       fetchJobs(searchTerm.trim());
       addNotification({
         title: "Reminder cleared",
-        message: `${job.company} · ${job.role}`,
+        message: `${job.company} Â· ${job.role}`,
         type: "success",
       });
     } catch (err) {
@@ -406,22 +493,32 @@ export default function Dashboard() {
                   Reset
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {["All", "Applied", "Interview", "Offer", "Rejected"].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                      statusFilter === status
-                        ? "bg-primary-600 text-white border-primary-600"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-700"
-                    }`}
-                  >
-                    {status === "All"
-                      ? "All Jobs"
-                      : `${status} (${statusCount(status)})`}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {["All", "Applied", "Interview", "Offer", "Rejected"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                        statusFilter === status
+                          ? "bg-primary-600 text-white border-primary-600"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-700"
+                      }`}
+                    >
+                      {status === "All"
+                        ? "All Jobs"
+                        : `${status} (${statusCount(status)})`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={exportJobsCsv} className="btn-secondary">
+                    Export CSV
                   </button>
-                ))}
+                  <button onClick={exportJobsPdf} className="btn-primary">
+                    Export PDF
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -458,32 +555,79 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h3>
-                {recentActivity.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    Activity will show up as you add or update jobs.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {recentActivity.map((job) => (
-                      <div key={`activity-${job._id}`} className="flex gap-3">
-                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-primary-500" />
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">
-                            {job.company} · {job.role}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Status: {job.status}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {new Date(job.updatedAt || job.createdAt).toLocaleString()}
-                          </p>
+              <div className="space-y-6">
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h3>
+                  {recentActivity.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      Activity will show up as you add or update jobs.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentActivity.map((job) => (
+                        <div key={`activity-${job._id}`} className="flex gap-3">
+                          <div className="mt-1 h-2.5 w-2.5 rounded-full bg-primary-500" />
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">
+                              {job.company} · {job.role}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Status: {job.status}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {new Date(job.updatedAt || job.createdAt).toLocaleString()}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="card p-6">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                    Status Breakdown
+                  </h3>
+                  <Pie
+                    data={{
+                      labels: STATUS_ORDER,
+                      datasets: [
+                        {
+                          data: STATUS_ORDER.map((s) => statusCount(s)),
+                          backgroundColor: [
+                            "#3b82f6",
+                            "#f59e0b",
+                            "#10b981",
+                            "#ef4444",
+                          ],
+                        },
+                      ],
+                    }}
+                    options={{ plugins: { legend: { position: "bottom" } } }}
+                  />
+                </div>
+
+                <div className="card p-6">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                    Reminders Due (Next 7 Days)
+                  </h3>
+                  <Bar
+                    data={{
+                      labels: remindersNext7.map((d) => d.label),
+                      datasets: [
+                        {
+                          label: "Reminders",
+                          data: remindersNext7.map((d) => d.count),
+                          backgroundColor: "#22c55e",
+                        },
+                      ],
+                    }}
+                    options={{
+                      plugins: { legend: { display: false } },
+                      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -510,7 +654,7 @@ export default function Dashboard() {
                     >
                       <div>
                         <p className="text-sm font-medium text-slate-800">
-                          {job.company} · {job.role}
+                          {job.company} Â· {job.role}
                         </p>
                         <p className="text-xs text-slate-500">
                           Reminder: {new Date(job.reminderAt).toLocaleDateString()}
@@ -568,7 +712,7 @@ export default function Dashboard() {
                   <div>
                     <h3 className="text-sm font-semibold text-slate-800">{status}</h3>
                     <p className="text-[11px] text-slate-500">
-                      {groupedByStatus[status]?.length || 0} jobs · Avg{" "}
+                      {groupedByStatus[status]?.length || 0} jobs Â· Avg{" "}
                       {averageStageAge(groupedByStatus[status] || [])}d
                     </p>
                   </div>
@@ -578,9 +722,9 @@ export default function Dashboard() {
                         ? "border-red-300 bg-red-50 text-red-700"
                         : "border-slate-200 bg-slate-50 text-slate-600"
                     }`}
-                    title={`WIP limit ${WIP_LIMITS[status] || "—"}`}
+                    title={`WIP limit ${WIP_LIMITS[status] || "â€”"}`}
                   >
-                    WIP {WIP_LIMITS[status] || "—"}
+                    WIP {WIP_LIMITS[status] || "â€”"}
                   </span>
                 </div>
                 <div className="space-y-4">
@@ -803,7 +947,7 @@ export default function Dashboard() {
                     >
                       <div>
                         <p className="text-sm font-medium text-slate-800">
-                          {event.job.company} · {event.job.role}
+                          {event.job.company} Â· {event.job.role}
                         </p>
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${

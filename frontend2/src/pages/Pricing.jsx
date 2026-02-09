@@ -1,24 +1,23 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import api from "../api/axios";
 
 export default function Pricing() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [payu, setPayu] = useState(null);
-  const [billing, setBilling] = useState("monthly");
 
   const priceMonthly = 199;
   const priceYearly = 1990;
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (plan) => {
     setError("");
     setLoading(true);
     try {
-      const amount = billing === "yearly" ? priceYearly : priceMonthly;
+      const amount = plan === "yearly" ? priceYearly : priceMonthly;
       const res = await api.post("/payments/payu/init", {
         amount,
-        plan: billing,
-        productinfo: `JobFlow Premium (${billing})`,
+        plan,
+        productinfo: `JobFlow Premium (${plan})`,
       });
       setPayu(res.data);
       setTimeout(() => {
@@ -42,28 +41,6 @@ export default function Pricing() {
           <p className="text-slate-600 mt-2 dark:text-slate-300">
             Unlock unlimited AI resume reviews and premium insights.
           </p>
-          <div className="mt-6 inline-flex items-center rounded-full border border-slate-200 bg-white p-1 text-sm dark:border-slate-800 dark:bg-slate-900">
-            <button
-              onClick={() => setBilling("monthly")}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
-                billing === "monthly"
-                  ? "bg-slate-900 text-white dark:bg-primary-600"
-                  : "text-slate-600 dark:text-slate-300"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBilling("yearly")}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
-                billing === "yearly"
-                  ? "bg-slate-900 text-white dark:bg-primary-600"
-                  : "text-slate-600 dark:text-slate-300"
-              }`}
-            >
-              Yearly
-            </button>
-          </div>
         </div>
 
         {error && (
@@ -72,7 +49,7 @@ export default function Pricing() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Free
@@ -94,19 +71,17 @@ export default function Pricing() {
 
           <div className="card p-6 border-2 border-primary-500">
             <div className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-700">
-              Recommended
+              Popular
             </div>
             <h2 className="text-lg font-semibold text-slate-900 mt-4 dark:text-slate-100">
-              Premium
+              Premium Monthly
             </h2>
             <p className="text-slate-500 text-sm mt-1 dark:text-slate-400">
-              Best for job seekers
+              Flexible monthly plan
             </p>
             <p className="text-3xl font-bold text-slate-900 mt-6 dark:text-slate-100">
-              ₹{billing === "yearly" ? priceYearly : priceMonthly}
-              <span className="text-sm font-normal text-slate-500">
-                /{billing === "yearly" ? "year" : "month"}
-              </span>
+              ₹{priceMonthly}
+              <span className="text-sm font-normal text-slate-500">/month</span>
             </p>
             <ul className="mt-6 space-y-2 text-sm text-slate-600 dark:text-slate-300">
               <li>• Unlimited AI resume reviews</li>
@@ -117,15 +92,43 @@ export default function Pricing() {
               <li>• Advanced analytics</li>
             </ul>
             <button
-              onClick={handleUpgrade}
+              onClick={() => handleUpgrade("monthly")}
               disabled={loading}
               className="btn-primary w-full mt-6 disabled:opacity-60"
             >
-              {loading ? "Starting checkout..." : "Upgrade to Premium"}
+              {loading ? "Starting checkout..." : "Upgrade Monthly"}
             </button>
             <p className="text-xs text-slate-500 mt-3">
               Test mode: use PayU test UPI IDs/cards only. Real UPI IDs will fail in sandbox.
             </p>
+          </div>
+
+          <div className="card p-6 border border-emerald-200">
+            <div className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+              Best value
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 mt-4 dark:text-slate-100">
+              Premium Yearly
+            </h2>
+            <p className="text-slate-500 text-sm mt-1 dark:text-slate-400">
+              Save with annual billing
+            </p>
+            <p className="text-3xl font-bold text-slate-900 mt-6 dark:text-slate-100">
+              ₹{priceYearly}
+              <span className="text-sm font-normal text-slate-500">/year</span>
+            </p>
+            <ul className="mt-6 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              <li>• Everything in Monthly</li>
+              <li>• Priority support</li>
+              <li>• Annual billing discount</li>
+            </ul>
+            <button
+              onClick={() => handleUpgrade("yearly")}
+              disabled={loading}
+              className="btn-secondary w-full mt-6 disabled:opacity-60"
+            >
+              {loading ? "Starting checkout..." : "Upgrade Yearly"}
+            </button>
           </div>
         </div>
       </div>
