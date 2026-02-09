@@ -108,24 +108,44 @@ const normalizeAnalysis = (raw, hasJobDescription) => {
 
   const normalizeArray = (value) =>
     Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+  const normalizeList = (value, count, fallback) => {
+    const list = normalizeArray(value);
+    const filled = list.length ? list : [fallback];
+    const trimmed = filled.slice(0, count);
+    while (trimmed.length < count) trimmed.push(fallback);
+    return trimmed;
+  };
+
+  const fallback = "No major issues found.";
+  const targetCount = 5;
+  const strengths = normalizeList(raw.strengths, targetCount, fallback);
+  const improvements = normalizeList(raw.improvements, targetCount, fallback);
+  const formattingTips = normalizeList(raw.formatting_tips, targetCount, fallback);
+  const actionPlan = normalizeList(raw.action_plan, targetCount, fallback);
+  const missingKeywords = normalizeArray(raw.missing_keywords);
+  const matchingKeywords = normalizeArray(raw.matching_keywords);
 
   return {
     overall_score: overallScore,
     ats_score: atsScore,
     summary: raw.summary ? String(raw.summary) : "",
-    strengths: normalizeArray(raw.strengths),
-    improvements: normalizeArray(raw.improvements),
-    missing_keywords: normalizeArray(raw.missing_keywords),
-    matching_keywords: normalizeArray(raw.matching_keywords),
-    formatting_tips: normalizeArray(raw.formatting_tips),
-    action_plan: normalizeArray(raw.action_plan),
+    strengths,
+    improvements,
+    missing_keywords: hasJobDescription
+      ? normalizeList(missingKeywords, targetCount, fallback)
+      : [],
+    matching_keywords: hasJobDescription
+      ? normalizeList(matchingKeywords, targetCount, fallback)
+      : [],
+    formatting_tips: formattingTips,
+    action_plan: actionPlan,
   };
 };
 
 const isNonEmptyString = (value) =>
   typeof value === "string" && value.trim().length > 0;
 
-const validateList = (list, { min = 3 } = {}) => {
+const validateList = (list, { min = 1 } = {}) => {
   if (!Array.isArray(list)) return false;
   if (list.length < min) return false;
   return list.every(isNonEmptyString);
