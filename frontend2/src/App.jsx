@@ -16,6 +16,7 @@ import PaymentFailure from "./pages/PaymentFailure";
 import Help from "./pages/Help";
 import { NotificationsProvider } from "./context/NotificationsContext";
 import Footer from "./components/Footer";
+import ChatWidget from "./components/ChatWidget";
 
 const isAuthenticated = () => !!localStorage.getItem("token");
 
@@ -109,6 +110,7 @@ function App() {
             }
           />
         </Routes>
+        <ChatWidget />
         <Footer />
       </BrowserRouter>
     </NotificationsProvider>
