@@ -2,6 +2,7 @@ const nodemailer = require("nodemailer");
 
 const smtpEnabled = () =>
   Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT);
+const brevoEnabled = () => Boolean(process.env.BREVO_API_KEY);
 
 const createTransporter = () => {
   if (!smtpEnabled()) return null;
@@ -68,15 +69,42 @@ If you didn't request this, you can ignore this email.`;
 };
 
 const sendPasswordResetEmail = async ({ to, resetUrl }) => {
+  const from = process.env.FROM_EMAIL || "JobFlow <no-reply@jobflow.local>";
+  const { text, html, subject } = buildResetEmail({ resetUrl });
+
+  if (brevoEnabled()) {
+    const [namePart, emailPart] = from.split("<");
+    const senderEmail = (emailPart || "").replace(">", "").trim() || from;
+    const senderName = (namePart || "").trim() || "JobFlow";
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "api-key": process.env.BREVO_API_KEY,
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        textContent: text,
+        htmlContent: html,
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      throw new Error(`Brevo API error: ${detail}`);
+    }
+    return;
+  }
+
   const transporter = createTransporter();
   if (!transporter) {
     throw new Error(
-      "SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS."
+      "Email not configured. Set BREVO_API_KEY or SMTP_HOST/SMTP_PORT."
     );
   }
-
-  const from = process.env.FROM_EMAIL || "JobFlow <no-reply@jobflow.local>";
-  const { text, html, subject } = buildResetEmail({ resetUrl });
 
   await transporter.sendMail({
     from,
