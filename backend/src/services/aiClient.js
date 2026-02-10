@@ -403,7 +403,7 @@ const generateWithGemini = async ({ resumeText, jobDescription, mode }) => {
       temperature: 0.8,        // Higher creativity for detailed responses
       topP: 0.95,             // Better diversity
       topK: 40,               // More varied token selection
-      maxOutputTokens: 3192,  // Allow longer, detailed responses
+      maxOutputTokens: 4192,  // Allow longer, detailed responses
       responseMimeType: "application/json",
     },
   });
