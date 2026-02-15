@@ -5,6 +5,7 @@ const {
   isKnownFeatureFlag,
   setFeatureFlag,
 } = require("../services/featureFlags");
+const { broadcastFeatureFlagUpdate } = require("../services/featureFlagEvents");
 
 exports.listUsers = async (req, res) => {
   const q = String(req.query.q || "").trim();
@@ -83,6 +84,12 @@ exports.updateFeatureFlag = async (req, res) => {
   }
 
   const updated = await setFeatureFlag(key, enabled);
+  broadcastFeatureFlagUpdate({
+    type: "feature_flag_updated",
+    key: updated.key,
+    enabled: updated.enabled,
+    updatedAt: updated.updatedAt,
+  });
   res.json({
     message: `Feature flag '${key}' updated.`,
     item: {

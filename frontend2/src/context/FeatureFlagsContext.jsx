@@ -42,6 +42,19 @@ export function FeatureFlagsProvider({ children }) {
     fetchFlags();
   }, []);
 
+  useEffect(() => {
+    const apiBaseUrl =
+      import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const source = new EventSource(`${apiBaseUrl}/features/stream`);
+    source.onmessage = () => {
+      fetchFlags();
+    };
+
+    return () => {
+      source.close();
+    };
+  }, []);
+
   const value = useMemo(
     () => ({
       flags,
