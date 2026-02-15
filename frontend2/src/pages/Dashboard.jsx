@@ -2,6 +2,7 @@
 import { useLocation } from "react-router-dom";
 import api from "../api/axios";
 import JobCard from "../components/JobCard";
+import JobTable from "../components/JobTable";
 import StatsCard from "../components/StatsCard";
 import AddJobModal from "../components/AddJobModal";
 import { useNotifications } from "../context/NotificationsContext";
@@ -36,6 +37,10 @@ export default function Dashboard() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("list");
+  const [listLayout, setListLayout] = useState(() => {
+    if (typeof window === "undefined") return "cards";
+    return localStorage.getItem("jobflow_list_layout") || "cards";
+  });
   const [statusFilter, setStatusFilter] = useState(() => {
     if (typeof window === "undefined") return "All";
     return localStorage.getItem("jobflow_status_filter") || "All";
@@ -103,6 +108,40 @@ export default function Dashboard() {
       localStorage.setItem("jobflow_status_filter", statusFilter);
     }
   }, [statusFilter]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    let isMounted = true;
+    api
+      .get("/users/me")
+      .then((res) => {
+        if (!isMounted) return;
+        const preference = res.data?.jobListView;
+        if (preference && ["cards", "table"].includes(preference)) {
+          setListLayout(preference);
+          localStorage.setItem("jobflow_list_layout", preference);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleListLayoutToggle = async () => {
+    const next = listLayout === "cards" ? "table" : "cards";
+    setListLayout(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("jobflow_list_layout", next);
+    }
+    try {
+      await api.put("/users/me/job-list-view", { view: next });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     const next = {};
@@ -512,6 +551,37 @@ export default function Dashboard() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleListLayoutToggle}
+                    className="btn-secondary flex items-center gap-2"
+                    title={listLayout === "cards" ? "Switch to table view" : "Switch to card view"}
+                  >
+                    {listLayout === "cards" ? (
+                      <>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 6h16M4 12h16M4 18h16"
+                          />
+                        </svg>
+                        Table
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 7h7v7H4V7zm9 0h7v7h-7V7zM4 16h7v1H4v-1zm9 0h7v1h-7v-1z"
+                          />
+                        </svg>
+                        Cards
+                      </>
+                    )}
+                  </button>
                   <button onClick={exportJobsCsv} className="btn-secondary">
                     Export CSV
                   </button>
@@ -541,7 +611,7 @@ export default function Dashboard() {
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : listLayout === "cards" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {sortedJobs.map((job) => (
                       <JobCard
@@ -552,6 +622,12 @@ export default function Dashboard() {
                       />
                     ))}
                   </div>
+                ) : (
+                  <JobTable
+                    jobs={sortedJobs}
+                    onRefresh={() => fetchJobs(searchTerm.trim())}
+                    formatDate={formatDate}
+                  />
                 )}
               </div>
 

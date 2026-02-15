@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema(
       enum: ["en", "hi", "kn"],
       default: "en"
     },
+    jobListView: {
+      type: String,
+      enum: ["cards", "table"],
+      default: "cards"
+    },
     isPremium: {
       type: Boolean,
       default: false

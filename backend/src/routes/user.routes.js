@@ -7,6 +7,7 @@ const {
   uploadAvatar,
   updateThemePreference,
   updateLanguagePreference,
+  updateJobListView,
 } = require("../controllers/user.controller");
 
 const router = express.Router();
@@ -28,6 +29,7 @@ router.get("/me", getMe);
 router.put("/me", updateProfile);
 router.put("/me/theme", updateThemePreference);
 router.put("/me/language", updateLanguagePreference);
+router.put("/me/job-list-view", updateJobListView);
 router.post("/me/avatar", (req, res, next) => {
   upload.single("avatar")(req, res, (err) => {
     if (err) {

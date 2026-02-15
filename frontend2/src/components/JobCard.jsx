@@ -22,13 +22,16 @@ export default function JobCard({
   onUpdate,
   onDelete,
   expandOnEdit = false,
+  autoEdit = false,
+  hideCard = false,
+  onCloseEdit,
   showQuickMove = false,
   onMoveLeft,
   onMoveRight,
   ageDays,
 }) {
   const { addNotification } = useNotifications();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(Boolean(autoEdit));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const toDateInput = (value) =>
@@ -48,6 +51,15 @@ export default function JobCard({
     notes: job.notes || "",
   });
 
+  const closeEdit = () => {
+    setIsEditing(false);
+    onCloseEdit?.();
+  };
+
+  useEffect(() => {
+    if (autoEdit) setIsEditing(true);
+  }, [autoEdit]);
+
   useEffect(() => {
     setChecklistItems(Array.isArray(job.checklist) ? job.checklist : []);
   }, [job.checklist]);
@@ -64,7 +76,7 @@ export default function JobCard({
         checklist: checklistItems,
       });
       onUpdate?.();
-      setIsEditing(false);
+        closeEdit();
       addNotification({
         title: "Job updated",
         message: `${form.company} · ${form.role}`,
@@ -321,7 +333,7 @@ export default function JobCard({
           {loading ? "Saving..." : "Save"}
         </button>
         <button
-          onClick={() => setIsEditing(false)}
+            onClick={closeEdit}
           disabled={loading}
           className="btn-secondary"
         >
@@ -336,13 +348,15 @@ export default function JobCard({
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
         <div
           className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-          onClick={() => setIsEditing(false)}
+          onClick={closeEdit}
         />
         <div className="relative w-full max-w-lg">{editForm}</div>
       </div>,
       document.body
     );
   }
+
+  if (hideCard) return null;
 
   if (showDeleteConfirm) {
     return createPortal(

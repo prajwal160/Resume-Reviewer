@@ -62,6 +62,21 @@ exports.updateLanguagePreference = async (req, res) => {
   res.json({ languagePreference: user.languagePreference });
 };
 
+exports.updateJobListView = async (req, res) => {
+  const view = String(req.body?.view || "").toLowerCase();
+  if (!["cards", "table"].includes(view)) {
+    return res.status(400).json({ message: "Invalid job list view." });
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { jobListView: view },
+    { new: true }
+  ).select("-password");
+
+  res.json({ jobListView: user.jobListView });
+};
+
 exports.uploadAvatar = async (req, res) => {
   if (!hasCloudinary) {
     return res.status(503).json({
